@@ -3,21 +3,25 @@
 import sys, os
 import random
 from twython import Twython, TwythonError
-from pokeyworks import resource_path
-
-APP_KEY = "nVJaVOPZGer4E65HSmDAzjswQ"
-APP_SECRET = "MBcOPekSomIVibUIvkpwCoZM7Cn872TjWcrSQ5887pZA2LquAL"
-OAUTH = "3840506773-XpG893az9BthEgiEIjysgIpakdVBACS3nqcdXgv"
-OAUTH_SECRET = "16X55Yd48QYMLHofNH00WXGwO1gFospfyterx4Ed2ScYi"
+from pokeyworks import resource_path, PokeyConfig
+import inspect
+import resources # for path to default include
 
 class PokeyTwit():
 
-    def __init__(self):
+    def __init__(
+            self,
+            lib_path=resource_path(resources.__file__,'twit_lib.txt'),
+            conf_path='bots.cfg'
+            ):
+
+        self.lib_path = lib_path
+        self.c = c = PokeyConfig(conf_path, PokeyConfig.encoded, True)
 
         try:
             print "Initializing twitter bot"
-            self.twitter = Twython(APP_KEY, APP_SECRET,
-                                    OAUTH, OAUTH_SECRET)
+            self.twitter = Twython(c.APP_KEY, c.APP_SECRET,
+                                    c.OAUTH, c.OAUTH_SECRET)
 
             print "Verifying credentials"
             self.twitter.verify_credentials()
@@ -43,7 +47,11 @@ class PokeyTwit():
             raise
 
     def get_message(self):
-        with open(resource_path(os.path.realpath(__file__),"resources/twit_lib.txt"), 'rb') as txt:
+        # If the lib_path is passed, use this path (does no path validation)
+        if self.lib_path is None:
+            # Otherwise, inspect the directory of the calling script and pull from that path
+            self.lib_path = resource_path(inspect.stack()[-1][1],"twit_lib.txt")
+        with open(self.lib_path, 'rb') as txt:
             twit_list = txt.readlines()
 
         line_stops=[]
@@ -59,7 +67,7 @@ class PokeyTwit():
             row += 1
 
         return msg
-        
+
 #****************************PokeyLanguage******************************
 #class PokeyLanguage(object):
 	#""" The PokeyLanguage class takes vocabulary and grammar files and 
