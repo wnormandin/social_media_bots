@@ -99,8 +99,7 @@ class PokeyBot(object):
 		e.g. 	mode = 'automaticailent'
 			mode = ('verbose', 'interactive')
 			
-		Due to the implementation, options may not contain text containing other
-		mode names, which might produce unanticipated results - See the related issue
+	See the related issue
 		https://github.com/wnormandin/social_media_bots/issues/1
 	"""
 
