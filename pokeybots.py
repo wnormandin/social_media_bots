@@ -2,10 +2,15 @@
 
 import sys, os
 import random
-from twython import Twython, TwythonError
-from pokeyworks import resource_path, PokeyConfig
+import socket
 import inspect
+
+# Requires Twython - https://twython.readthedocs.io/en/latest/
+from twython import Twython, TwythonError
+
+# Custom libraries
 import resources # for path to default include
+from pokeyworks import resource_path, PokeyConfig
 
 class PokeyTwit():
 
@@ -54,18 +59,7 @@ class PokeyTwit():
         with open(self.lib_path, 'rb') as txt:
             twit_list = txt.readlines()
 
-        line_stops=[]
-        for idx, val in enumerate(twit_list):
-            if val.rstrip()=='':
-                line_stops.append(idx)
-
-        row = random.randint(line_stops[0],len(line_stops))
-        msg = ''
-        while twit_list[row].rstrip() != '':
-            msg += twit_list[row]
-            msg += ' '
-            row += 1
-
+        msg = twit_list[random.randint(0,len(twit_list)-1)]
         return msg
 
 #****************************PokeyLanguage******************************
@@ -82,7 +76,8 @@ class PokeyTwit():
 
 #*******************************PokeyBot********************************
 class PokeyBot(object):
-	""" The PokeyBot class expects a PokeyConfig 'conf' to be passed
+	""" The PokeyBot class expects a Namespace ( like one returned by pokeyworks.PokeyConfig with
+	a True "apply" flag, or an argparse.ArgumentParser.parse_args() Namespace ) 'conf' to be passed
 	containing the following :
 
 		server
@@ -92,68 +87,53 @@ class PokeyBot(object):
 		friends
 		debug
 		mode
-
-	As an alternative, these values can each be passed as keyword args
-	if there is no conf included.
+		
+	The mode can be any iterable type containing the strings indicating
+	possible modes :
+	
+		<default> - default mode requires execution in the calling script
+		automatic - execution occurs at the end of __init__
+		interactive - same as automatic, connects with the curses f/e in resources
+		silent - bot will remain silent unless triggered
+		
+		e.g. 	mode = 'automaticailent'
+			mode = ('verbose', 'interactive')
+			
+		Due to the implementation, options may not contain text containing other
+		mode names, which might produce unanticipated results - See the related issue
+		https://github.com/wnormandin/social_media_bots/issues/1
 	"""
 
 	def __init__(
 				self, 
-				**kwargs
+				conf
 				):
 
-		if conf:
-			self.populate_from_conf(conf)
-		else:
-			if server and channel and password:
-				self.config = None
-				self.server = server
-				self.debug = debug
-				self.channel = channel
-				self.name = name
-				self.password = password
-				self.friends = friends
-				self.mode = mode
-			else:
-				print 'Pokeybot could not initialize : missing parameter (server, channel, pass)'
-				sys.exit(1)
+		self.populate_from_conf(conf)
 
-		if not conf.channel.startswith('#'):
-			self.channel = '#{}'.format(self.channel)
-
-		if self.mode == 'silent':
-			self.silent = True
-		else:
-			self.silent = False
-
-		if self.mode != 'interactive':
+		if 'automatic' in self.mod or 'interactive' in self.mode:
 			self.execute()
 
-	def change_mode(self,mode):
-		self.mode = mode
-		if mode.lower() == 'silent':
-			self.silent = True
-		else:
-			self.silent = False
-
-	def populate_from_conf(c):
+	def populate_from_conf(conf):
 		self.config = conf
 		self.server = conf.server
 		self.debug = conf.debug
-		self.channel = conf.channel
+		self.channel = conf.channel if conf.channel.startswith('#') else '#{}'.format(conf.channel)
 		self.name = conf.name
 		self.password = conf.password
 		self.friends = conf.friends
 		self.mode = conf.mode
+		self.silent = True if 'silent' in self.mode else False
 
 	def execute(self):
-
 		self.connected = self.do_connect()
 		time.sleep(0.15)
 		self.join_channel(self.channel)
 
 	def main_loop(self,d=False):
-
+		# This method should be overridden by your custom Bot class
+		# The default chatty bot behavior is to tell annoying, nonsensical
+		# jokes with very limited interaction.
 		v = self.vocab
 
 		try:
@@ -231,7 +211,9 @@ class PokeyBot(object):
 			print resp
 
 			if 'PING' in resp:
-				self.ping(resp.replace('PING :','').rstrip())
+				# Return the ping phrase
+				# in our ping response
+				self.ping(resp.split(':')[1].rstrip())
 				print irc.recv(4096)
 
 			return True
